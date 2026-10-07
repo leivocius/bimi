@@ -1,5 +1,5 @@
 // Offline-Speicher: eigene Dateien beim Installieren, Schriften beim ersten Laden
-const CACHE = "sudoku-v2";
+const CACHE = "sudoku-v3";
 const FILES = ["./", "index.html", "manifest.webmanifest", "icon-180.png", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", e => {
