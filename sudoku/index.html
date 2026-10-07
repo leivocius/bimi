@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sudoku">
+<meta name="theme-color" content="#eceeea" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#13171c" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<title>Sudoku</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: Spielfeld links, Schriftfeld und Werkzeuge rechts; auf dem Telefon untereinander */
+:root {
+  --paper: #eceeea;
+  --sheet: #fbfbf8;
+  --ink: #1e2a37;
+  --line: #c3c8c6;
+  --muted: #66707a;
+  --user: #2346b0;
+  --marker: #f4dc5a;
+  --peer: #e3e8ee;
+  --same: #c9d6f2;
+  --err: #b8322a;
+  --err-bg: #f6dcd8;
+  --btn: #ffffff;
+  --btn-hover: #f1f3f5;
+  --display: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #13171c; --sheet: #1b2128; --ink: #dfe4e8; --line: #343c46; --muted: #8e98a3;
+    --user: #94b3ff; --marker: #6a5a14; --peer: #222a33; --same: #2c3a55;
+    --err: #ff8a7f; --err-bg: #4a2522; --btn: #222932; --btn-hover: #2b333d;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #13171c; --sheet: #1b2128; --ink: #dfe4e8; --line: #343c46; --muted: #8e98a3;
+  --user: #94b3ff; --marker: #6a5a14; --peer: #222a33; --same: #2c3a55;
+  --err: #ff8a7f; --err-bg: #4a2522; --btn: #222932; --btn-hover: #2b333d;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); background: var(--paper); color: var(--ink); font-family: var(--sans); font-size: 15px; line-height: 1.45; }
+
+.app {
+  max-width: 62rem; margin: 0 auto; padding-block: 28px 48px; padding-inline: 16px;
+  display: grid; grid-template-columns: minmax(0, 34rem) minmax(15rem, 1fr);
+  gap: 20px 36px; align-items: start;
+}
+header { grid-column: 1 / -1; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; border-bottom: 2px solid var(--ink); padding-bottom: 10px; }
+h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 7vw, 3.6rem); line-height: .9; letter-spacing: .02em; margin: 0; text-transform: uppercase; text-wrap: balance; }
+.logo { all: unset; cursor: pointer; display: inline-block; transition: transform .15s; -webkit-tap-highlight-color: transparent; }
+.logo:hover { transform: rotate(-2deg); }
+.logo:active { transform: scale(.96); }
+.logo:focus-visible { outline: 2px solid var(--user); outline-offset: 4px; }
+
+.board-wrap { position: relative; width: 100%; }
+.board {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; padding: 3px;
+  background: var(--ink); width: 100%; max-width: 100%; aspect-ratio: 1; user-select: none; touch-action: manipulation;
+}
+.box { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); gap: 1px; background: var(--line); }
+.cell {
+  all: unset; box-sizing: border-box; position: relative; display: grid; place-items: center;
+  background: var(--sheet); color: var(--user); cursor: pointer; min-width: 0; min-height: 0;
+  font: 500 clamp(1.15rem, 5.4vw, 1.95rem)/1 var(--mono); font-variant-numeric: tabular-nums;
+  transition: background-color .12s;
+}
+.cell.given { color: var(--ink); font-weight: 600; }
+.cell.peer { background: var(--peer); }
+.cell.same { background: var(--same); }
+.cell.sel { background: var(--marker); }
+.cell.err { color: var(--err); }
+.cell.err:not(.sel) { background: var(--err-bg); }
+.cell:focus-visible { outline: 2px solid var(--user); outline-offset: -3px; }
+.notes { position: absolute; inset: 2px; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); place-items: center; font: 500 clamp(.5rem, 2vw, .7rem)/1 var(--mono); color: var(--muted); }
+.cell.pop { animation: pop .25s ease-out; }
+@keyframes pop { 0% { transform: scale(.82); } 100% { transform: scale(1); } }
+
+.coords { display: flex; justify-content: space-between; font: 500 .7rem var(--mono); color: var(--muted); letter-spacing: .08em; margin-top: 6px; text-transform: uppercase; }
+
+.win {
+  position: absolute; inset: 0; display: grid; place-items: center; background: color-mix(in srgb, var(--paper) 82%, transparent);
+  backdrop-filter: blur(2px);
+}
+.win-card { background: var(--sheet); border: 2px solid var(--ink); padding: 22px 26px; display: grid; gap: 10px; text-align: center; max-width: 80%; }
+.win-card h2 { font-family: var(--display); font-weight: 800; font-size: 2.2rem; text-transform: uppercase; margin: 0; line-height: 1; }
+.win-card p { margin: 0; color: var(--muted); }
+
+.panel { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.label { font-size: .68rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+
+/* Schriftfeld nach Art eines Planstempels */
+.stamp { display: grid; grid-template-columns: 1fr 1fr; border: 2px solid var(--ink); background: var(--sheet); }
+.stamp > div { padding: 7px 10px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); display: grid; gap: 1px; min-width: 0; align-content: center; }
+.stamp > div:nth-child(2n) { border-right: 0; }
+.stamp > div:nth-last-child(-n+2) { border-bottom: 0; }
+.stamp .v { font: 500 1.05rem var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stamp .title { grid-column: 1 / -1; border-right: 0; background: var(--ink); color: var(--sheet); }
+.stamp .title .label { color: inherit; opacity: .75; }
+.stamp .title .v { font-family: var(--display); font-weight: 600; font-size: 1.35rem; letter-spacing: .04em; text-transform: uppercase; }
+
+.btn {
+  font: 500 .9rem var(--sans); color: var(--ink); background: var(--btn); border: 1px solid var(--line);
+  padding: 9px 12px; cursor: pointer; border-radius: 3px; min-height: 42px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+}
+.btn:hover { background: var(--btn-hover); }
+.btn:focus-visible { outline: 2px solid var(--user); outline-offset: 2px; }
+.btn[aria-pressed="true"] { background: var(--ink); color: var(--sheet); border-color: var(--ink); }
+.btn.primary { background: var(--ink); color: var(--sheet); border-color: var(--ink); font-weight: 600; }
+.btn.armed { background: var(--err); border-color: var(--err); color: var(--sheet); }
+.btn:disabled { opacity: .35; cursor: default; }
+
+.pad { display: grid; grid-template-columns: repeat(9, 1fr); gap: 5px; margin-top: 14px; }
+.pad .btn { font: 500 1.5rem var(--mono); min-height: 56px; position: relative; padding: 0; }
+.pad .btn small { position: absolute; right: 6px; bottom: 3px; font: 400 .65rem var(--mono); color: var(--muted); }
+.pad .btn[aria-pressed="true"] small { color: inherit; opacity: .7; }
+.actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.actions .btn { flex-direction: column; gap: 2px; font-size: .78rem; padding: 6px 4px; }
+.actions .btn b { font: 600 1rem var(--mono); }
+
+.levels { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
+.levels .btn { border: 0; border-right: 1px solid var(--line); border-radius: 0; font-size: .82rem; padding: 8px 4px; min-width: 0; }
+.levels .btn:last-child { border-right: 0; }
+.newgame { display: grid; gap: 8px; }
+.toggle { display: flex; align-items: center; gap: 8px; font-size: .85rem; color: var(--muted); cursor: pointer; }
+.toggle input { width: 16px; height: 16px; accent-color: var(--user); }
+.keys { margin: 0; font-size: .78rem; color: var(--muted); line-height: 1.6; }
+.keys kbd { font: 500 .72rem var(--mono); border: 1px solid var(--line); border-bottom-width: 2px; padding: 0 4px; border-radius: 3px; background: var(--sheet); color: var(--ink); }
+
+@media (max-width: 760px) {
+  .app { grid-template-columns: minmax(0, 1fr); padding-block: 18px 36px; }
+  .pad { gap: 4px; margin-top: 12px; }
+  .pad .btn { min-height: 52px; font-size: 1.3rem; }
+  .pad .btn small { right: 3px; bottom: 1px; font-size: .58rem; }
+  .actions { order: 1; } .stamp { order: 2; } .newgame { order: 3; } .keys { display: none; }
+}
+/* Desktop: rechte Spalte folgt dem Zeilenraster des Spielfelds (Zeilenhöhen setzt das Skript) */
+@media (min-width: 761px) {
+  .panel { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: repeat(9, 3.6rem) auto auto; gap: 0; }
+  .stamp { grid-row: 1 / 5; grid-template-rows: subgrid; }
+  .stamp > div { padding-block: 2px; }
+  .stamp .title .v { line-height: 1.1; }
+  .actions { grid-row: 6; }
+  .newgame { display: contents; }
+  .newgame > .label { grid-row: 7; align-self: end; padding-bottom: 6px; }
+  .levels { grid-row: 8; margin-bottom: 3px; }
+  #new { grid-row: 9; margin-top: 3px; }
+  .toggle { grid-row: 10; margin-top: 6px; }
+  .keys { grid-row: 11; margin-top: 12px; }
+  .actions .btn, .levels .btn, #new { min-height: 0; }
+  .actions .btn { font-size: .92rem; gap: 3px; }
+  .actions .btn b { font-size: 1.3rem; line-height: 1; }
+  .levels .btn { font-size: .98rem; }
+  #new { font-size: 1.05rem; }
+  .newgame > .label { font-size: .8rem; }
+}
+#confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; }
+@media (prefers-reduced-motion: reduce) { .cell { transition: none; } .cell.pop { animation: none; } }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <h1><button type="button" class="logo" id="logo" title="Konfetti">Sudoku</button></h1>
+  </header>
+
+  <div>
+    <div class="board-wrap">
+      <div class="board" id="board" role="grid" aria-label="Sudoku-Spielfeld"></div>
+      <div class="win" id="win" hidden>
+        <div class="win-card">
+          <h2>Gelöst</h2>
+          <p id="win-text"></p>
+          <button class="btn primary" id="win-new" type="button">Nächstes Blatt</button>
+        </div>
+      </div>
+    </div>
+    <div class="coords"><span>Reihen A bis I</span><span>Spalten 1 bis 9</span></div>
+    <div class="pad" id="pad" aria-label="Ziffern"></div>
+  </div>
+
+  <div class="panel" id="panel">
+    <div class="stamp" aria-label="Schriftfeld">
+      <div class="title"><span class="label">Planinhalt</span><span class="v" id="s-title">Sudoku</span></div>
+      <div><span class="label">Blatt-Nr.</span><span class="v" id="s-sheet">–</span></div>
+      <div><span class="label">Zeit</span><span class="v" id="s-time">00:00</span></div>
+      <div><span class="label">Feld</span><span class="v" id="s-cell">–</span></div>
+      <div><span class="label">Offen</span><span class="v" id="s-open">–</span></div>
+      <div><span class="label">Fehler</span><span class="v" id="s-err">0</span></div>
+      <div><span class="label">Hinweise</span><span class="v" id="s-hint">0</span></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn" id="a-undo" type="button" title="Rückgängig (Strg+Z)"><b>↶</b>Zurück</button>
+      <button class="btn" id="a-erase" type="button" title="Löschen (Entf)"><b>×</b>Löschen</button>
+      <button class="btn" id="a-notes" type="button" aria-pressed="false" title="Notizen (N)"><b>✎</b>Notizen</button>
+      <button class="btn" id="a-hint" type="button" title="Hinweis (H)"><b>?</b>Hinweis</button>
+    </div>
+
+    <div class="newgame">
+      <span class="label">Neues Blatt</span>
+      <div class="levels" id="levels" role="group" aria-label="Schwierigkeit"></div>
+      <button class="btn primary" id="new" type="button">Neues Spiel</button>
+      <label class="toggle" for="show-err"><input type="checkbox" id="show-err" checked>Fehler sofort anzeigen</label>
+    </div>
+
+    <p class="keys"><kbd>1</kbd> bis <kbd>9</kbd> eintragen · Pfeiltasten bewegen · <kbd>N</kbd> Notizen · <kbd>H</kbd> Hinweis · <kbd>Entf</kbd> löschen · <kbd>Strg</kbd>+<kbd>Z</kbd> zurück</p>
+  </div>
+</div>
+
+<canvas id="confetti" aria-hidden="true" hidden></canvas>
+<script>
+(() => {
+  const LEVELS = {
+    leicht:  { name: "Leicht",  clues: 40 },
+    mittel:  { name: "Mittel",  clues: 32 },
+    schwer:  { name: "Schwer",  clues: 27 },
+    experte: { name: "Experte", clues: 23 }
+  };
+  const ROWS = "ABCDEFGHI";
+  const RI = [], CI = [], BI = [];
+  for (let i = 0; i < 81; i++) { RI[i] = (i / 9) | 0; CI[i] = i % 9; BI[i] = ((RI[i] / 3) | 0) * 3 + ((CI[i] / 3) | 0); }
+  const PEERS = [];
+  for (let i = 0; i < 81; i++) {
+    PEERS[i] = [];
+    for (let j = 0; j < 81; j++) if (j !== i && (RI[j] === RI[i] || CI[j] === CI[i] || BI[j] === BI[i])) PEERS[i].push(j);
+  }
+
+  const popc = m => { let n = 0; while (m) { m &= m - 1; n++; } return n; };
+  const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+  // Backtracking mit Bitmasken; füllt g bei limit 1 vollständig
+  function search(g, limit, random) {
+    const rows = new Int32Array(9), cols = new Int32Array(9), boxes = new Int32Array(9);
+    for (let i = 0; i < 81; i++) if (g[i]) { const b = 1 << g[i]; rows[RI[i]] |= b; cols[CI[i]] |= b; boxes[BI[i]] |= b; }
+    let count = 0;
+    (function rec() {
+      let best = -1, bm = 0, bc = 10;
+      for (let i = 0; i < 81; i++) {
+        if (g[i]) continue;
+        const m = ~(rows[RI[i]] | cols[CI[i]] | boxes[BI[i]]) & 0x3FE;
+        const n = popc(m);
+        if (n === 0) return;
+        if (n < bc) { bc = n; best = i; bm = m; if (n === 1) break; }
+      }
+      if (best < 0) { count++; return; }
+      const ds = [];
+      for (let d = 1; d <= 9; d++) if (bm & (1 << d)) ds.push(d);
+      if (random) shuffle(ds);
+      const r = RI[best], c = CI[best], b = BI[best];
+      for (const d of ds) {
+        const bit = 1 << d;
+        g[best] = d; rows[r] |= bit; cols[c] |= bit; boxes[b] |= bit;
+        rec();
+        if (count >= limit) return;
+        g[best] = 0; rows[r] ^= bit; cols[c] ^= bit; boxes[b] ^= bit;
+      }
+    })();
+    return count;
+  }
+
+  function generate(level) {
+    const sol = new Array(81).fill(0);
+    search(sol, 1, true);
+    const puz = sol.slice();
+    let clues = 81;
+    for (const i of shuffle([...Array(81).keys()])) {
+      if (clues <= LEVELS[level].clues) break;
+      const v = puz[i];
+      puz[i] = 0;
+      if (search(puz.slice(), 2, false) !== 1) puz[i] = v; else clues--;
+    }
+    return { puzzle: puz, solution: sol };
+  }
+
+  let S = null;
+  let history = [];
+  let pendingLevel = "mittel";
+  let showErr = true;
+  let armTimer = null;
+
+  const $ = id => document.getElementById(id);
+  const boardEl = $("board"), padEl = $("pad"), levelsEl = $("levels");
+  const cells = [];
+
+  // Spielfeld in Blockreihenfolge aufbauen, Zellen nach Position ablegen
+  for (let b = 0; b < 9; b++) {
+    const box = document.createElement("div");
+    box.className = "box";
+    box.setAttribute("role", "rowgroup");
+    for (let k = 0; k < 9; k++) {
+      const r = ((b / 3) | 0) * 3 + ((k / 3) | 0), c = (b % 3) * 3 + (k % 3), i = r * 9 + c;
+      const el = document.createElement("button");
+      el.type = "button";
+      el.className = "cell";
+      el.setAttribute("role", "gridcell");
+      el.addEventListener("click", () => select(i));
+      cells[i] = el;
+      box.appendChild(el);
+    }
+    boardEl.appendChild(box);
+  }
+  const padBtns = [];
+  for (let d = 1; d <= 9; d++) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "btn";
+    b.innerHTML = d + "<small></small>";
+    b.addEventListener("click", () => input(d));
+    padBtns[d] = b;
+    padEl.appendChild(b);
+  }
+  const levelBtns = {};
+  for (const [key, L] of Object.entries(LEVELS)) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "btn"; b.textContent = L.name;
+    b.addEventListener("click", () => { pendingLevel = key; disarm(); renderLevels(); });
+    levelBtns[key] = b;
+    levelsEl.appendChild(b);
+  }
+
+  function newGame(level) {
+    const { puzzle, solution } = generate(level);
+    S = {
+      level, puzzle, solution, grid: puzzle.slice(), notes: new Array(81).fill(0),
+      sel: -1, notesMode: false, seconds: 0, mistakes: 0, hints: 0, done: false,
+      sheet: String(1000 + ((Math.random() * 9000) | 0))
+    };
+    pendingLevel = level;
+    history = [];
+    render(); save();
+  }
+
+  function pushHistory() {
+    history.push({ grid: S.grid.slice(), notes: S.notes.slice() });
+    if (history.length > 300) history.shift();
+  }
+
+  function select(i) {
+    if (!S) return;
+    S.sel = i;
+    render();
+  }
+
+  function input(d) {
+    const i = S.sel;
+    if (S.done || i < 0 || S.puzzle[i]) return;
+    if (S.notesMode) {
+      if (S.grid[i]) return;
+      pushHistory();
+      S.notes[i] ^= 1 << d;
+    } else {
+      if (S.grid[i] === d) return;
+      pushHistory();
+      S.grid[i] = d;
+      S.notes[i] = 0;
+      if (d !== S.solution[i]) S.mistakes++;
+      else for (const p of PEERS[i]) S.notes[p] &= ~(1 << d);
+      pop(i);
+    }
+    afterChange();
+  }
+
+  function erase() {
+    const i = S.sel;
+    if (S.done || i < 0 || S.puzzle[i] || (!S.grid[i] && !S.notes[i])) return;
+    pushHistory();
+    S.grid[i] = 0; S.notes[i] = 0;
+    afterChange();
+  }
+
+  function undo() {
+    if (S.done || !history.length) return;
+    const h = history.pop();
+    S.grid = h.grid; S.notes = h.notes;
+    afterChange();
+  }
+
+  function hint() {
+    if (S.done) return;
+    let i = S.sel;
+    if (i < 0 || S.grid[i] === S.solution[i]) {
+      const open = [];
+      for (let k = 0; k < 81; k++) if (S.grid[k] !== S.solution[k]) open.push(k);
+      if (!open.length) return;
+      i = open[(Math.random() * open.length) | 0];
+    }
+    pushHistory();
+    S.grid[i] = S.solution[i];
+    S.notes[i] = 0;
+    for (const p of PEERS[i]) S.notes[p] &= ~(1 << S.grid[i]);
+    S.hints++;
+    S.sel = i;
+    pop(i);
+    afterChange();
+  }
+
+  function pop(i) {
+    const el = cells[i];
+    el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop");
+  }
+
+  function afterChange() {
+    if (!S.done && S.grid.every((v, k) => v === S.solution[k])) { S.done = true; S.sel = -1; confetti(); }
+    render(); save();
+  }
+
+  // Konfetti: Papierstreifen auf einem Canvas über der ganzen Seite
+  let confettiRun = 0;
+  function confetti(force) {
+    if (!force && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const cv = $("confetti"), ctx = cv.getContext("2d");
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const W = innerWidth, H = innerHeight;
+    cv.width = W * dpr; cv.height = H * dpr; cv.hidden = false;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const css = getComputedStyle(document.documentElement);
+    const cols = ["--marker", "--user", "--err", "--ink", "--same"].map(v => css.getPropertyValue(v).trim()).concat(["#3fa66b", "#f08a24"]);
+    const parts = [];
+    const burst = (x, dir) => {
+      for (let k = 0; k < 110; k++) {
+        const a = -Math.PI / 2 + dir * (0.25 + Math.random() * 0.55), v = 9 + Math.random() * 11;
+        parts.push({ x, y: H + 10, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 1.25, w: 6 + Math.random() * 6, h: 3 + Math.random() * 5,
+          rot: Math.random() * 6.28, vr: (Math.random() - .5) * .35, tilt: Math.random() * 6.28, vt: .08 + Math.random() * .12,
+          c: cols[(Math.random() * cols.length) | 0] });
+      }
+    };
+    burst(0, 1); burst(W, -1);
+    setTimeout(() => { for (let k = 0; k < 90; k++) parts.push({ x: Math.random() * W, y: -20 - Math.random() * 120, vx: (Math.random() - .5) * 2, vy: 1 + Math.random() * 2,
+      w: 6 + Math.random() * 6, h: 3 + Math.random() * 5, rot: Math.random() * 6.28, vr: (Math.random() - .5) * .3, tilt: Math.random() * 6.28, vt: .08 + Math.random() * .12,
+      c: cols[(Math.random() * cols.length) | 0] }); }, 450);
+    const id = ++confettiRun, t0 = performance.now();
+    (function frame(t) {
+      if (id !== confettiRun) return;
+      ctx.clearRect(0, 0, W, H);
+      let alive = 0;
+      for (const p of parts) {
+        p.vy += 0.32; p.vx *= 0.985; p.vy *= 0.985;
+        p.x += p.vx + Math.sin(p.tilt) * 0.6; p.y += p.vy; p.rot += p.vr; p.tilt += p.vt;
+        if (p.y < H + 30) alive++;
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.scale(1, Math.cos(p.tilt));
+        ctx.fillStyle = p.c; ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); ctx.restore();
+      }
+      if ((alive && t - t0 < 7000) || t - t0 < 600) requestAnimationFrame(frame);
+      else { ctx.clearRect(0, 0, W, H); cv.hidden = true; }
+    })(t0);
+  }
+
+  const fmt = s => { const h = (s / 3600) | 0, m = ((s % 3600) / 60) | 0, x = s % 60; const mm = String(m).padStart(2, "0") + ":" + String(x).padStart(2, "0"); return h ? h + ":" + mm : mm; };
+
+  function render() {
+    const sel = S.sel, sv = sel >= 0 ? S.grid[sel] : 0;
+    const counts = new Array(10).fill(0);
+    let open = 0;
+    for (let i = 0; i < 81; i++) {
+      const v = S.grid[i], el = cells[i];
+      if (v && v === S.solution[i]) counts[v]++;
+      if (v !== S.solution[i]) open++;
+      const peer = sel >= 0 && i !== sel && (RI[i] === RI[sel] || CI[i] === CI[sel] || BI[i] === BI[sel]);
+      const err = showErr && v && !S.puzzle[i] && v !== S.solution[i];
+      el.className = "cell" + (S.puzzle[i] ? " given" : "") + (i === sel ? " sel" : "")
+        + (peer ? " peer" : "") + (sv && v === sv && i !== sel ? " same" : "") + (err ? " err" : "")
+        + (el.classList.contains("pop") ? " pop" : "");
+      if (v) el.textContent = v;
+      else if (S.notes[i]) {
+        let h = '<span class="notes">';
+        for (let d = 1; d <= 9; d++) h += "<span>" + (S.notes[i] & (1 << d) ? d : "") + "</span>";
+        el.innerHTML = h + "</span>";
+      } else el.textContent = "";
+      el.setAttribute("aria-label", ROWS[RI[i]] + (CI[i] + 1) + (v ? ", " + v : ", leer") + (S.puzzle[i] ? ", vorgegeben" : ""));
+      el.tabIndex = i === (sel >= 0 ? sel : 0) ? 0 : -1;
+    }
+    for (let d = 1; d <= 9; d++) {
+      const left = 9 - counts[d];
+      padBtns[d].querySelector("small").textContent = left || "";
+      padBtns[d].disabled = S.done || (left === 0 && !S.notesMode);
+      padBtns[d].setAttribute("aria-label", d + ", noch " + left + " offen");
+    }
+    $("a-notes").setAttribute("aria-pressed", String(S.notesMode));
+    $("a-undo").disabled = S.done || !history.length;
+    $("s-title").textContent = "Sudoku " + LEVELS[S.level].name;
+    $("s-sheet").textContent = S.sheet;
+    $("s-time").textContent = fmt(S.seconds);
+    $("s-cell").textContent = sel >= 0 ? ROWS[RI[sel]] + (CI[sel] + 1) : "–";
+    $("s-open").textContent = open + " / 81";
+    $("s-err").textContent = S.mistakes;
+    $("s-hint").textContent = S.hints;
+    $("win").hidden = !S.done;
+    if (S.done) $("win-text").textContent = "Blatt " + S.sheet + ", " + LEVELS[S.level].name + ", in " + fmt(S.seconds) + " mit " + S.mistakes + " Fehlern und " + S.hints + " Hinweisen.";
+    renderLevels();
+  }
+
+  function renderLevels() {
+    for (const k in levelBtns) levelBtns[k].setAttribute("aria-pressed", String(k === pendingLevel));
+  }
+
+  function disarm() {
+    clearTimeout(armTimer);
+    const b = $("new");
+    b.classList.remove("armed");
+    b.textContent = "Neues Spiel";
+  }
+
+  $("new").addEventListener("click", () => {
+    const b = $("new");
+    const progress = !S.done && S.grid.some((v, i) => v && !S.puzzle[i]);
+    if (progress && !b.classList.contains("armed")) {
+      b.classList.add("armed");
+      b.textContent = "Laufendes Spiel verwerfen?";
+      armTimer = setTimeout(disarm, 4000);
+      return;
+    }
+    disarm();
+    newGame(pendingLevel);
+  });
+  $("logo").addEventListener("click", () => confetti(true));
+  $("win-new").addEventListener("click", () => newGame(pendingLevel));
+  $("a-undo").addEventListener("click", undo);
+  $("a-erase").addEventListener("click", erase);
+  $("a-hint").addEventListener("click", hint);
+  $("a-notes").addEventListener("click", () => { S.notesMode = !S.notesMode; render(); save(); });
+  $("show-err").addEventListener("change", e => { showErr = e.target.checked; render(); save(); });
+
+  document.addEventListener("keydown", e => {
+    if (!S || e.target.closest("input, select, textarea")) return;
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); undo(); return; }
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const k = e.key;
+    if (/^[1-9]$/.test(k)) { input(+k); return; }
+    if (k === "Backspace" || k === "Delete" || k === "0") { erase(); e.preventDefault(); return; }
+    if (k === "n" || k === "N") { S.notesMode = !S.notesMode; render(); return; }
+    if (k === "h" || k === "H") { hint(); return; }
+    const mv = { ArrowUp: -9, ArrowDown: 9, ArrowLeft: -1, ArrowRight: 1 }[k];
+    if (mv !== undefined) {
+      e.preventDefault();
+      let i = S.sel < 0 ? 40 : S.sel;
+      let r = RI[i], c = CI[i];
+      if (mv === -9) r = (r + 8) % 9; else if (mv === 9) r = (r + 1) % 9;
+      else if (mv === -1) c = (c + 8) % 9; else c = (c + 1) % 9;
+      select(r * 9 + c);
+      if (boardEl.contains(document.activeElement)) cells[S.sel].focus();
+    }
+  });
+
+  setInterval(() => {
+    if (!S || S.done || document.hidden) return;
+    S.seconds++;
+    $("s-time").textContent = fmt(S.seconds);
+    if (S.seconds % 5 === 0) save();
+  }, 1000);
+
+  const KEY = "sudoku-v1";
+  function snapshot() { return S ? { game: S, showErr } : {}; }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(snapshot())); } catch (_) {} }
+  function load() { try { return JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (_) { return {}; } }
+  function valid(g) { return g && Array.isArray(g.puzzle) && g.puzzle.length === 81 && Array.isArray(g.solution) && LEVELS[g.level]; }
+
+  // Zeilenhöhen des Spielfelds auf die rechte Spalte übertragen
+  const panelEl = $("panel"), wide = matchMedia("(min-width: 761px)");
+  function syncRows() {
+    if (!wide.matches) { panelEl.style.gridTemplateRows = ""; return; }
+    const ys = [0];
+    for (let r = 1; r < 9; r++) {
+      const a = cells[(r - 1) * 9], b = cells[r * 9];
+      ys.push((a.offsetTop + a.offsetHeight + b.offsetTop) / 2);
+    }
+    ys.push(boardEl.offsetHeight);
+    const rows = [];
+    for (let k = 1; k < ys.length; k++) rows.push((ys[k] - ys[k - 1]).toFixed(2) + "px");
+    panelEl.style.gridTemplateRows = rows.join(" ") + " auto auto";
+  }
+  if (window.ResizeObserver) new ResizeObserver(syncRows).observe(boardEl);
+  wide.addEventListener?.("change", syncRows);
+  syncRows();
+
+  function start(data) {
+    const d = data && valid(data.game) ? data : load();
+    if (typeof d.showErr === "boolean") { showErr = d.showErr; $("show-err").checked = showErr; }
+    if (valid(d.game)) { S = d.game; pendingLevel = S.level; render(); }
+    else newGame("mittel");
+  }
+  window.claude?.hot?.snapshot?.(snapshot);
+  window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+})();
+</script>
+<script>
+if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+</script>
+</body>
+</html>
