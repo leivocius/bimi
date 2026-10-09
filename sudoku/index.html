@@ -37,6 +37,10 @@
   --head-fg: #fbfbf8;
   --pick: #1e2a37;
   --pick-line: #1e2a37;
+  --reward: rgba(244, 214, 70, .72);
+  --glint: rgba(255, 255, 255, .85);
+  --stampc: #b8322a;
+  --gold: #c08a12;
   --display: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
   --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
@@ -47,6 +51,7 @@
     --user: #94b3ff; --marker: #6a5a14; --peer: #222a33; --same: #2c3a55;
     --err: #ff8a7f; --err-bg: #4a2522; --btn: #222932; --btn-hover: #2b333d;
     --head: #2a3440; --head-fg: #dfe4e8; --pick: #2f4470; --pick-line: #5f7fc4;
+    --reward: rgba(255, 214, 90, .34); --glint: rgba(255, 236, 170, .45); --stampc: #ff8a7f; --gold: #f2c14e;
     color-scheme: dark;
   }
 }
@@ -55,6 +60,7 @@
   --user: #94b3ff; --marker: #6a5a14; --peer: #222a33; --same: #2c3a55;
   --err: #ff8a7f; --err-bg: #4a2522; --btn: #222932; --btn-hover: #2b333d;
     --head: #2a3440; --head-fg: #dfe4e8; --pick: #2f4470; --pick-line: #5f7fc4;
+    --reward: rgba(255, 214, 90, .34); --glint: rgba(255, 236, 170, .45); --stampc: #ff8a7f; --gold: #f2c14e;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -178,6 +184,60 @@ h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 7vw
   #new { font-size: 1.05rem; }
   .newgame > .label { font-size: .8rem; }
 }
+/* Belohnungen */
+.fx-layer { position: absolute; inset: 0; pointer-events: none; z-index: 3; overflow: hidden; }
+.fx-cell { position: absolute; background: var(--reward); opacity: 0; animation: fxCell .9s ease-out both; }
+@keyframes fxCell { 0% { opacity: 0; transform: scale(.55); } 30% { opacity: 1; transform: scale(1.06); } 100% { opacity: 0; transform: scale(1); } }
+.fx-band { position: absolute; background-repeat: no-repeat; animation: sweepX 1s ease-in-out both; }
+.fx-band.x { background-image: linear-gradient(90deg, transparent, var(--glint), transparent); background-size: 35% 100%; }
+.fx-band.y { background-image: linear-gradient(0deg, transparent, var(--glint), transparent); background-size: 100% 35%; animation-name: sweepY; }
+@keyframes sweepX { from { background-position: -60% 0; } to { background-position: 160% 0; } }
+@keyframes sweepY { from { background-position: 0 160%; } to { background-position: 0 -60%; } }
+.fx-ring { position: absolute; border: 3px solid var(--user); border-radius: 50%; opacity: 0; animation: ring .9s ease-out both; }
+@keyframes ring { 0% { transform: scale(.25); opacity: 1; } 100% { transform: scale(1.3); opacity: 0; } }
+.fx-stamp { position: absolute; display: grid; place-items: center; }
+.fx-stamp span {
+  font-family: var(--display); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; line-height: 1;
+  color: var(--stampc); border: 3px double var(--stampc); border-radius: 4px; padding: .18em .35em .1em;
+  background: color-mix(in srgb, var(--sheet) 70%, transparent); white-space: nowrap;
+  animation: stampIn 2.1s cubic-bezier(.2, .9, .3, 1) both;
+}
+@keyframes stampIn {
+  0% { transform: rotate(-14deg) scale(2.6); opacity: 0; }
+  14% { transform: rotate(-11deg) scale(.94); opacity: 1; }
+  22% { transform: rotate(-12deg) scale(1); opacity: 1; }
+  78% { transform: rotate(-12deg) scale(1); opacity: 1; }
+  100% { transform: rotate(-12deg) scale(1); opacity: 0; }
+}
+.pad .btn.complete::after { content: "\2713"; position: absolute; left: 5px; top: 3px; font: 700 .7rem var(--sans); color: var(--gold); }
+.log {
+  position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 14px); transform: translateX(-50%);
+  width: min(calc(100vw - 32px), 24rem); display: grid; gap: 6px; z-index: 40; pointer-events: none;
+}
+.log-entry {
+  background: var(--sheet); color: var(--ink); border: 1px solid var(--line); border-radius: 3px;
+  padding: 8px 12px; display: grid; gap: 2px; box-shadow: 0 6px 18px rgba(0, 0, 0, .18);
+  animation: logIn .35s ease-out both;
+}
+.log-entry.out { animation: logOut .4s ease-in both; }
+.log-entry.strong { background: var(--head); color: var(--head-fg); border-color: var(--head); }
+.log-meta { font: 500 .62rem var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.log-entry.strong .log-meta { color: inherit; opacity: .7; }
+.log-text { font: 500 .95rem var(--sans); }
+.log-entry.strong .log-text { font: 600 1.15rem var(--display); letter-spacing: .05em; text-transform: uppercase; }
+@keyframes logIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
+@keyframes logOut { to { opacity: 0; transform: translateY(-8px); } }
+#sparks { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 45; }
+@media (prefers-reduced-motion: reduce) {
+  .fx-band, .fx-ring { display: none; }
+  .fx-cell { animation-name: fadePulse; }
+  .fx-stamp span { animation-name: fadePulse; animation-duration: 2.4s; }
+  .log-entry { animation-name: fadeIn; }
+  .log-entry.out { animation-name: fadeOut; }
+}
+@keyframes fadeIn { from { opacity: 0; } }
+@keyframes fadeOut { to { opacity: 0; } }
+@keyframes fadePulse { 0%, 100% { opacity: 0; } 15%, 80% { opacity: 1; } }
 #confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; }
 @media (prefers-reduced-motion: reduce) { .cell { transition: none; } .cell.pop { animation: none; } }
 </style>
@@ -235,6 +295,8 @@ h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 7vw
 </div>
 
 <canvas id="confetti" aria-hidden="true" hidden></canvas>
+<canvas id="sparks" aria-hidden="true" hidden></canvas>
+<div class="log" id="log" aria-live="polite"></div>
 <script>
 (() => {
   const LEVELS = {
@@ -384,6 +446,7 @@ h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 7vw
       pop(i);
     }
     afterChange();
+    if (!S.notesMode && d === S.solution[i]) rewards(i);
   }
 
   function erase() {
@@ -418,11 +481,166 @@ h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 7vw
     S.sel = i;
     pop(i);
     afterChange();
+    rewards(i);
   }
 
   function pop(i) {
     const el = cells[i];
     el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop");
+  }
+
+  // Belohnungen für fertige Reihen, Spalten, Blöcke und Ziffern
+  const fxLayer = document.createElement("div");
+  fxLayer.className = "fx-layer";
+  boardEl.parentElement.appendChild(fxLayer);
+  const BOX_NAMES = ["oben links", "oben Mitte", "oben rechts", "Mitte links", "in der Mitte", "Mitte rechts", "unten links", "unten Mitte", "unten rechts"];
+  const PLURAL = ["", "Einsen", "Zweien", "Dreien", "Vieren", "Fünfen", "Sechsen", "Siebenen", "Achten", "Neunen"];
+  const STAMPS = ["Freigegeben", "Abgenommen", "Geprüft", "Maßhaltig", "Genehmigt", "Lotrecht", "Mängelfrei", "Bezugsfertig"];
+  const pick = a => a[(Math.random() * a.length) | 0];
+  const ok = k => S.grid[k] === S.solution[k];
+  const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function rectOf(list) {
+    let x1 = Infinity, y1 = Infinity, x2 = 0, y2 = 0;
+    for (const k of list) {
+      const e = cells[k];
+      x1 = Math.min(x1, e.offsetLeft); y1 = Math.min(y1, e.offsetTop);
+      x2 = Math.max(x2, e.offsetLeft + e.offsetWidth); y2 = Math.max(y2, e.offsetTop + e.offsetHeight);
+    }
+    return { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
+  }
+  function fx(cls, r, delay, life) {
+    const e = document.createElement("div");
+    e.className = cls;
+    Object.assign(e.style, { left: r.x + "px", top: r.y + "px", width: r.w + "px", height: r.h + "px", animationDelay: delay + "ms" });
+    fxLayer.appendChild(e);
+    setTimeout(() => e.remove(), delay + life);
+    return e;
+  }
+  function wave(list, delayOf) { list.forEach((k, n) => fx("fx-cell", rectOf([k]), delayOf(k, n), 1000)); }
+
+  function stamp(list, word, delay) {
+    const r = rectOf(list);
+    const e = fx("fx-stamp", r, 0, delay + 2300);
+    const sp = document.createElement("span");
+    sp.textContent = word;
+    sp.style.fontSize = Math.max(11, r.w * 0.15) + "px";
+    sp.style.animationDelay = delay + "ms";
+    e.appendChild(sp);
+  }
+
+  function toast(text, strong) {
+    const log = $("log");
+    const e = document.createElement("div");
+    e.className = "log-entry" + (strong ? " strong" : "");
+    const now = new Date();
+    const time = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+    e.innerHTML = '<span class="log-meta"></span><span class="log-text"></span>';
+    e.firstChild.textContent = (strong ? "Sondermeldung" : "Bautagebuch") + " · " + time;
+    e.lastChild.textContent = text;
+    log.appendChild(e);
+    while (log.children.length > 5) log.firstChild.remove();
+    setTimeout(() => { e.classList.add("out"); setTimeout(() => e.remove(), 450); }, strong ? 5500 : 5000);
+  }
+
+  // Funken aus einer Zifferntaste
+  let sparkRun = 0;
+  function sparks(x, y, color) {
+    if (reduced()) return;
+    const cv = $("sparks"), ctx = cv.getContext("2d");
+    const dpr = Math.min(window.devicePixelRatio || 1, 2), W = innerWidth, H = innerHeight;
+    cv.width = W * dpr; cv.height = H * dpr; cv.hidden = false;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const css = getComputedStyle(root);
+    const cols = [css.getPropertyValue("--gold").trim(), color, css.getPropertyValue("--marker").trim()];
+    const ps = [];
+    for (let k = 0; k < 42; k++) {
+      const a = Math.random() * Math.PI * 2, v = 2 + Math.random() * 6;
+      ps.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 3, r: 2 + Math.random() * 3.5, rot: Math.random() * 6, c: cols[k % 3], life: 1 });
+    }
+    const id = ++sparkRun;
+    (function frame() {
+      if (id !== sparkRun) return;
+      ctx.clearRect(0, 0, W, H);
+      let alive = 0;
+      for (const p of ps) {
+        p.vy += 0.22; p.vx *= 0.97; p.x += p.vx; p.y += p.vy; p.rot += 0.2; p.life -= 0.016;
+        if (p.life <= 0) continue;
+        alive++;
+        ctx.save(); ctx.globalAlpha = Math.min(1, p.life * 1.5); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.fillStyle = p.c;
+        ctx.beginPath();
+        for (let q = 0; q < 8; q++) { const rr = q % 2 ? p.r * 0.4 : p.r * 1.6, aa = q * Math.PI / 4; ctx.lineTo(Math.cos(aa) * rr, Math.sin(aa) * rr); }
+        ctx.closePath(); ctx.fill(); ctx.restore();
+      }
+      if (alive) requestAnimationFrame(frame); else { ctx.clearRect(0, 0, W, H); cv.hidden = true; }
+    })();
+  }
+
+  function rewards(i) {
+    if (S.done) return;
+    const r = RI[i], c = CI[i], b = BI[i], d = S.grid[i];
+    const row = [], col = [], box = [], same = [];
+    for (let k = 0; k < 81; k++) {
+      if (RI[k] === r) row.push(k);
+      if (CI[k] === c) col.push(k);
+      if (BI[k] === b) box.push(k);
+      if (S.grid[k] === d && ok(k)) same.push(k);
+    }
+    const ev = [];
+    if (row.every(ok)) ev.push("row");
+    if (col.every(ok)) ev.push("col");
+    if (box.every(ok)) ev.push("box");
+    if (same.length === 9) ev.push("digit");
+    if (!ev.length) return;
+    S.rewards = (S.rewards || 0) + ev.length;
+    save();
+
+    if (ev.length > 1) toast(["", "", "Doppelte Abnahme", "Dreifache Abnahme", "Großbaustelle fertig"][ev.length], true);
+    let delay = 0;
+    if (ev.includes("row")) {
+      wave(row, (k, n) => Math.abs(CI[k] - c) * 55);
+      fx("fx-band x", rectOf(row), 120, 1200);
+      toast(pick([
+        "Reihe " + ROWS[r] + " steht wie eine saubere Mauerschicht.",
+        "Reihe " + ROWS[r] + " ist waagerecht und vollständig.",
+        "Reihe " + ROWS[r] + " im Wasser. Die Libelle ist zufrieden.",
+        "Reihe " + ROWS[r] + " verfugt und abgezogen."
+      ]));
+      delay += 120;
+    }
+    if (ev.includes("col")) {
+      wave(col, (k, n) => (8 - RI[k]) * 55 + delay);
+      fx("fx-band y", rectOf(col), delay + 120, 1300);
+      toast(pick([
+        "Spalte " + (c + 1) + " trägt.",
+        "Spalte " + (c + 1) + " steht senkrecht bis unters Dach.",
+        "Stütze " + (c + 1) + " betoniert und ausgeschalt.",
+        "Spalte " + (c + 1) + ": Lastabtrag nachgewiesen."
+      ]));
+      delay += 120;
+    }
+    if (ev.includes("box")) {
+      wave(box, k => (Math.abs(RI[k] - r) + Math.abs(CI[k] - c)) * 80 + delay);
+      const word = pick(STAMPS);
+      stamp(box, word, delay + 380);
+      toast(pick([
+        "Block " + BOX_NAMES[b] + ": " + word.toLowerCase() + ".",
+        "Block " + BOX_NAMES[b] + " ist abgenommen.",
+        "Block " + BOX_NAMES[b] + " mängelfrei übergeben."
+      ]));
+      delay += 200;
+    }
+    if (ev.includes("digit")) {
+      same.sort((a, z) => a - z).forEach((k, n) => fx("fx-ring", rectOf([k]), delay + n * 70, 1000));
+      const pb = padBtns[d].getBoundingClientRect();
+      setTimeout(() => sparks(pb.left + pb.width / 2, pb.top + pb.height / 2, getComputedStyle(root).getPropertyValue("--user").trim()), delay + 200);
+      toast(pick([
+        "Alle " + PLURAL[d] + " sind verbaut.",
+        PLURAL[d] + ": Lieferung vollständig eingebaut.",
+        "Materialliste Position " + d + ": abgehakt.",
+        "Keine " + PLURAL[d] + " mehr auf Lager. Alles sitzt."
+      ]));
+    }
   }
 
   function afterChange() {
@@ -499,6 +717,7 @@ h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 7vw
       const left = 9 - counts[d];
       padBtns[d].querySelector("small").textContent = left || "";
       padBtns[d].disabled = S.done || (left === 0 && !S.notesMode);
+      padBtns[d].classList.toggle("complete", left === 0);
       padBtns[d].setAttribute("aria-label", d + ", noch " + left + " offen");
     }
     $("a-notes").setAttribute("aria-pressed", String(S.notesMode));
@@ -511,7 +730,7 @@ h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 7vw
     $("s-err").textContent = S.mistakes;
     $("s-hint").textContent = S.hints;
     $("win").hidden = !S.done;
-    if (S.done) $("win-text").textContent = "Blatt " + S.sheet + ", " + LEVELS[S.level].name + ", in " + fmt(S.seconds) + " mit " + S.mistakes + " Fehlern und " + S.hints + " Hinweisen.";
+    if (S.done) $("win-text").textContent = "Blatt " + S.sheet + ", " + LEVELS[S.level].name + ", in " + fmt(S.seconds) + " mit " + S.mistakes + " Fehlern und " + S.hints + " Hinweisen." + (S.rewards ? " Abnahmen unterwegs: " + S.rewards + "." : "");
     renderLevels();
   }
 
