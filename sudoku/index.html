@@ -14,10 +14,15 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <script>try { var t = localStorage.getItem("sudoku-theme"); if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t); } catch (e) {}</script>
 <title>Sudoku</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
+@font-face { font-family: "Big Shoulders Display"; font-style: normal; font-weight: 600; font-display: swap; src: url("fonts/big-shoulders-display-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "Big Shoulders Display"; font-style: normal; font-weight: 800; font-display: swap; src: url("fonts/big-shoulders-display-latin-800-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400; font-display: swap; src: url("fonts/ibm-plex-sans-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 500; font-display: swap; src: url("fonts/ibm-plex-sans-latin-500-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 600; font-display: swap; src: url("fonts/ibm-plex-sans-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url("fonts/ibm-plex-mono-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url("fonts/ibm-plex-mono-latin-500-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 600; font-display: swap; src: url("fonts/ibm-plex-mono-latin-600-normal.woff2") format("woff2"); }
 /* Layout: Spielfeld links, Schriftfeld und Werkzeuge rechts; auf dem Telefon untereinander */
 :root {
   --paper: #eceeea;
@@ -238,6 +243,41 @@ h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 7vw
 @keyframes fadeIn { from { opacity: 0; } }
 @keyframes fadeOut { to { opacity: 0; } }
 @keyframes fadePulse { 0%, 100% { opacity: 0; } 15%, 80% { opacity: 1; } }
+/* Werkzeuge oben rechts, Pause, Bauakte */
+.tools { display: flex; gap: 8px; align-self: center; }
+.board-wrap.busy .board { opacity: .45; transition: opacity .2s; }
+.stamp > div.time-cell { position: relative; padding-right: 48px; }
+.pause-btn {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 34px; height: 34px;
+  display: grid; place-items: center; border: 1px solid var(--line); border-radius: 50%;
+  background: var(--btn); color: var(--ink); cursor: pointer; padding: 0;
+}
+.pause-btn:hover { background: var(--btn-hover); }
+.pause-btn:focus-visible { outline: 2px solid var(--user); outline-offset: 2px; }
+.pause-btn:disabled { opacity: .35; cursor: default; }
+.pause-btn svg { width: 14px; height: 14px; }
+.pause { position: absolute; inset: 0; display: grid; place-items: center; background: var(--sheet); border: 3px solid var(--ink); z-index: 6; }
+.dlg { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 16px; background: rgba(10, 14, 20, .5); }
+.dlg-card {
+  width: min(100%, 32rem); max-height: calc(100vh - 32px); overflow: auto; background: var(--sheet); color: var(--ink);
+  border: 2px solid var(--line); border-radius: 4px; padding: 20px; display: grid; gap: 16px;
+}
+.dlg-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.dlg-head h2 { margin: 0; font-family: var(--display); font-weight: 800; font-size: 2rem; text-transform: uppercase; letter-spacing: .03em; line-height: 1; }
+.tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 2px solid var(--ink); }
+.tiles > div { padding: 8px 10px; display: grid; gap: 2px; border-right: 1px solid var(--line); min-width: 0; }
+.tiles > div:last-child { border-right: 0; }
+.tiles .v { font: 600 1.5rem var(--mono); font-variant-numeric: tabular-nums; }
+.tiles small { font: 400 .7rem var(--sans); color: var(--muted); display: block; }
+.tbl { overflow-x: auto; }
+.tbl table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.tbl th, .tbl td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.tbl thead th { font: 500 .66rem var(--sans); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.tbl td { font: 500 .95rem var(--mono); }
+.tbl tbody th { font: 600 .95rem var(--sans); }
+.dlg-note { margin: 0; font-size: .8rem; color: var(--muted); }
+#stats-reset { justify-self: start; }
+@media (max-width: 420px) { .tools .btn span { display: none; } .tools .btn { padding: 6px 10px; } }
 #confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; }
 @media (prefers-reduced-motion: reduce) { .cell { transition: none; } .cell.pop { animation: none; } }
 </style>
@@ -247,7 +287,10 @@ h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 7vw
 <div class="app">
   <header>
     <h1><button type="button" class="logo" id="logo" title="Konfetti">Sudoku</button></h1>
-    <button type="button" class="btn theme" id="theme" aria-label="Darstellung wechseln"></button>
+    <div class="tools">
+      <button type="button" class="btn theme" id="stats-btn" aria-label="Bauakte öffnen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2.5h8.5A1.5 1.5 0 0 1 21 9v9.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z"/></svg><span>Bauakte</span></button>
+      <button type="button" class="btn theme" id="theme" aria-label="Darstellung wechseln"></button>
+    </div>
   </header>
 
   <div>
@@ -260,6 +303,13 @@ h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 7vw
           <button class="btn primary" id="win-new" type="button">Nächstes Blatt</button>
         </div>
       </div>
+      <div class="pause" id="pause-ov" hidden>
+        <div class="win-card">
+          <h2>Pause</h2>
+          <p>Die Uhr steht, das Blatt ist abgedeckt.</p>
+          <button class="btn primary" id="resume" type="button">Weiter</button>
+        </div>
+      </div>
     </div>
     <div class="coords"><span>Reihen A bis I</span><span>Spalten 1 bis 9</span></div>
     <div class="pad" id="pad" aria-label="Ziffern"></div>
@@ -269,7 +319,7 @@ h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 7vw
     <div class="stamp" aria-label="Schriftfeld">
       <div class="title"><span class="label">Planinhalt</span><span class="v" id="s-title">Sudoku</span></div>
       <div><span class="label">Blatt-Nr.</span><span class="v" id="s-sheet">–</span></div>
-      <div><span class="label">Zeit</span><span class="v" id="s-time">00:00</span></div>
+      <div class="time-cell"><span class="label">Zeit</span><span class="v" id="s-time">00:00</span><button type="button" class="pause-btn" id="pause" aria-label="Pause" title="Pause (P)"></button></div>
       <div><span class="label">Feld</span><span class="v" id="s-cell">–</span></div>
       <div><span class="label">Offen</span><span class="v" id="s-open">–</span></div>
       <div><span class="label">Fehler</span><span class="v" id="s-err">0</span></div>
@@ -290,20 +340,28 @@ h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 7vw
       <label class="toggle" for="show-err"><input type="checkbox" id="show-err" checked>Fehler sofort anzeigen</label>
     </div>
 
-    <p class="keys"><kbd>1</kbd> bis <kbd>9</kbd> eintragen · Pfeiltasten bewegen · <kbd>N</kbd> Notizen · <kbd>H</kbd> Hinweis · <kbd>Entf</kbd> löschen · <kbd>Strg</kbd>+<kbd>Z</kbd> zurück</p>
+    <p class="keys"><kbd>1</kbd> bis <kbd>9</kbd> eintragen · Pfeiltasten bewegen · <kbd>N</kbd> Notizen · <kbd>H</kbd> Hinweis · <kbd>P</kbd> Pause · <kbd>Entf</kbd> löschen · <kbd>Strg</kbd>+<kbd>Z</kbd> zurück</p>
   </div>
 </div>
 
 <canvas id="confetti" aria-hidden="true" hidden></canvas>
 <canvas id="sparks" aria-hidden="true" hidden></canvas>
 <div class="log" id="log" aria-live="polite"></div>
+<div class="dlg" id="stats" role="dialog" aria-modal="true" aria-labelledby="stats-h" hidden>
+  <div class="dlg-card">
+    <div class="dlg-head"><h2 id="stats-h">Bauakte</h2><button type="button" class="btn" id="stats-close">Schließen</button></div>
+    <div id="stats-body"></div>
+    <p class="dlg-note">Gespeichert nur auf diesem Gerät. Die Serie zählt gelöste Blätter ohne Fehler in Folge.</p>
+    <button type="button" class="btn" id="stats-reset">Bauakte leeren</button>
+  </div>
+</div>
 <script>
 (() => {
   const LEVELS = {
-    leicht:  { name: "Leicht",  clues: 40 },
-    mittel:  { name: "Mittel",  clues: 32 },
-    schwer:  { name: "Schwer",  clues: 27 },
-    experte: { name: "Experte", clues: 23 }
+    leicht:  { name: "Leicht",  tier: 1, min: 36 },
+    mittel:  { name: "Mittel",  tier: 2, min: 28 },
+    schwer:  { name: "Schwer",  tier: 3, min: 24 },
+    experte: { name: "Experte", tier: 4, min: 21 }
   };
   const ROWS = "ABCDEFGHI";
   const RI = [], CI = [], BI = [];
@@ -347,18 +405,127 @@ h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 7vw
     return count;
   }
 
-  function generate(level) {
-    const sol = new Array(81).fill(0);
-    search(sol, 1, true);
-    const puz = sol.slice();
-    let clues = 81;
-    for (const i of shuffle([...Array(81).keys()])) {
-      if (clues <= LEVELS[level].clues) break;
-      const v = puz[i];
-      puz[i] = 0;
-      if (search(puz.slice(), 2, false) !== 1) puz[i] = v; else clues--;
+  // Bewertung nach Lösungstechniken: 1 Singles, 2 Blockaden und Paare, 3 Tripel und X-Wing, 4 darüber hinaus
+  const UNITS = [];
+  for (let n = 0; n < 9; n++) {
+    UNITS.push([...Array(9)].map((_, k) => n * 9 + k));
+    UNITS.push([...Array(9)].map((_, k) => k * 9 + n));
+    UNITS.push([...Array(9)].map((_, k) => (((n / 3) | 0) * 3 + ((k / 3) | 0)) * 9 + (n % 3) * 3 + (k % 3)));
+  }
+  function grade(puz) {
+    const g = puz.slice(), cand = new Array(81).fill(0);
+    for (let i = 0; i < 81; i++) if (!g[i]) {
+      let m = 0x3FE;
+      for (const p of PEERS[i]) if (g[p]) m &= ~(1 << g[p]);
+      cand[i] = m;
     }
-    return { puzzle: puz, solution: sol };
+    const place = (i, d) => { g[i] = d; cand[i] = 0; for (const p of PEERS[i]) cand[p] &= ~(1 << d); };
+    const elim = (i, mask) => { if (cand[i] & mask) { cand[i] &= ~mask; return true; } return false; };
+    function singles() {
+      for (let i = 0; i < 81; i++) if (!g[i] && popc(cand[i]) === 1) { place(i, 31 - Math.clz32(cand[i])); return true; }
+      for (const u of UNITS) for (let d = 1; d <= 9; d++) {
+        let at = -1, n = 0;
+        for (const k of u) if (cand[k] & (1 << d)) { at = k; n++; }
+        if (n === 1) { place(at, d); return true; }
+      }
+      return false;
+    }
+    function locked() {
+      let ch = false;
+      for (let b = 0; b < 9; b++) {
+        const box = UNITS[b * 3 + 2];
+        for (let d = 1; d <= 9; d++) {
+          const bit = 1 << d, cs = box.filter(k => cand[k] & bit);
+          if (cs.length < 2) continue;
+          if (cs.every(k => RI[k] === RI[cs[0]])) for (const k of UNITS[RI[cs[0]] * 3]) if (BI[k] !== b) ch = elim(k, bit) || ch;
+          if (cs.every(k => CI[k] === CI[cs[0]])) for (const k of UNITS[CI[cs[0]] * 3 + 1]) if (BI[k] !== b) ch = elim(k, bit) || ch;
+        }
+      }
+      for (let n = 0; n < 9; n++) for (const u of [UNITS[n * 3], UNITS[n * 3 + 1]]) for (let d = 1; d <= 9; d++) {
+        const bit = 1 << d, cs = u.filter(k => cand[k] & bit);
+        if (cs.length < 2 || !cs.every(k => BI[k] === BI[cs[0]])) continue;
+        for (const k of UNITS[BI[cs[0]] * 3 + 2]) if (!u.includes(k)) ch = elim(k, bit) || ch;
+      }
+      return ch;
+    }
+    function combos(arr, n, f) {
+      const pick = [];
+      (function rec(s) {
+        if (pick.length === n) { f(pick); return; }
+        for (let k = s; k < arr.length; k++) { pick.push(arr[k]); rec(k + 1); pick.pop(); }
+      })(0);
+    }
+    function subsets(n) {
+      let ch = false;
+      for (const u of UNITS) {
+        const open = u.filter(k => !g[k]);
+        if (open.length <= n) continue;
+        combos(open.filter(k => popc(cand[k]) <= n), n, cs => {
+          let m = 0; for (const k of cs) m |= cand[k];
+          if (popc(m) === n) for (const k of open) if (!cs.includes(k)) ch = elim(k, m) || ch;
+        });
+        const digits = [];
+        for (let d = 1; d <= 9; d++) { const c = open.filter(k => cand[k] & (1 << d)).length; if (c >= 1 && c <= n) digits.push(d); }
+        combos(digits, n, ds => {
+          let m = 0; for (const d of ds) m |= 1 << d;
+          const cs = open.filter(k => cand[k] & m);
+          if (cs.length === n) for (const k of cs) ch = elim(k, ~m & 0x3FE) || ch;
+        });
+      }
+      return ch;
+    }
+    function xwing() {
+      let ch = false;
+      for (let d = 1; d <= 9; d++) {
+        const bit = 1 << d;
+        for (const [line, cross] of [[0, 1], [1, 0]]) {
+          const pos = [];
+          for (let n = 0; n < 9; n++) {
+            const cs = UNITS[n * 3 + line].filter(k => cand[k] & bit);
+            if (cs.length === 2) pos.push([n, cs.map(k => line ? RI[k] : CI[k])]);
+          }
+          for (let a = 0; a < pos.length; a++) for (let z = a + 1; z < pos.length; z++) {
+            const [n1, p1] = pos[a], [n2, p2] = pos[z];
+            if (p1[0] !== p2[0] || p1[1] !== p2[1]) continue;
+            for (const q of p1) for (const k of UNITS[q * 3 + cross]) {
+              const ln = line ? CI[k] : RI[k];
+              if (ln !== n1 && ln !== n2) ch = elim(k, bit) || ch;
+            }
+          }
+        }
+      }
+      return ch;
+    }
+    let tier = 1;
+    for (;;) {
+      if (g.every(v => v)) return tier;
+      if (singles()) continue;
+      if (locked() || subsets(2)) { tier = Math.max(tier, 2); continue; }
+      if (subsets(3) || xwing()) { tier = Math.max(tier, 3); continue; }
+      return 4;
+    }
+  }
+
+  // Erzeugt Rätsel, bis die nötige Technik zur Stufe passt; nach Zeitbudget das passendste
+  async function generate(level) {
+    const L = LEVELS[level], t0 = performance.now();
+    let best = null;
+    for (let n = 0; ; n++) {
+      const sol = new Array(81).fill(0);
+      search(sol, 1, true);
+      const puz = sol.slice();
+      let clues = 81;
+      for (const i of shuffle([...Array(81).keys()])) {
+        if (clues <= L.min) break;
+        const v = puz[i];
+        puz[i] = 0;
+        if (search(puz.slice(), 2, false) !== 1 || (L.tier < 4 && grade(puz) > L.tier)) puz[i] = v; else clues--;
+      }
+      const tier = grade(puz);
+      if (!best || Math.abs(tier - L.tier) < Math.abs(best.tier - L.tier)) best = { puzzle: puz, solution: sol, tier };
+      if (tier === L.tier || performance.now() - t0 > 3000) return best;
+      if (n % 3 === 2) await new Promise(r => setTimeout(r, 0));
+    }
   }
 
   let S = null;
@@ -406,15 +573,29 @@ h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 7vw
     levelsEl.appendChild(b);
   }
 
-  function newGame(level) {
-    const { puzzle, solution } = generate(level);
+  let busy = false, paused = false;
+  function setBusy(on) {
+    busy = on;
+    $("new").disabled = on; $("win-new").disabled = on;
+    $("new").textContent = on ? "Blatt wird gezeichnet …" : "Neues Spiel";
+    boardEl.parentElement.classList.toggle("busy", on);
+  }
+  async function newGame(level) {
+    if (busy) return;
+    setBusy(true);
+    await new Promise(r => setTimeout(r, 30));
+    const { puzzle, solution, tier } = await generate(level);
     S = {
-      level, puzzle, solution, grid: puzzle.slice(), notes: new Array(81).fill(0),
-      sel: -1, notesMode: false, seconds: 0, mistakes: 0, hints: 0, done: false,
+      level, tier, puzzle, solution, grid: puzzle.slice(), notes: new Array(81).fill(0),
+      sel: -1, notesMode: false, seconds: 0, mistakes: 0, hints: 0, done: false, rewards: 0,
       sheet: String(1000 + ((Math.random() * 9000) | 0))
     };
     pendingLevel = level;
     history = [];
+    paused = false;
+    stats.levels[level].started++;
+    saveStats();
+    setBusy(false);
     render(); save();
   }
 
@@ -424,12 +605,13 @@ h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 7vw
   }
 
   function select(i) {
-    if (!S) return;
+    if (!S || busy || paused) return;
     S.sel = i;
     render();
   }
 
   function input(d) {
+    if (!S || busy || paused) return;
     const i = S.sel;
     if (S.done || i < 0 || S.puzzle[i]) return;
     if (S.notesMode) {
@@ -450,6 +632,7 @@ h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 7vw
   }
 
   function erase() {
+    if (!S || busy || paused) return;
     const i = S.sel;
     if (S.done || i < 0 || S.puzzle[i] || (!S.grid[i] && !S.notes[i])) return;
     pushHistory();
@@ -458,6 +641,7 @@ h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 7vw
   }
 
   function undo() {
+    if (!S || busy || paused) return;
     if (S.done || !history.length) return;
     const h = history.pop();
     S.grid = h.grid; S.notes = h.notes;
@@ -465,7 +649,7 @@ h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 7vw
   }
 
   function hint() {
-    if (S.done) return;
+    if (!S || busy || paused || S.done) return;
     let i = S.sel;
     if (i < 0 || S.grid[i] === S.solution[i]) {
       const open = [];
@@ -593,6 +777,8 @@ h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 7vw
     if (same.length === 9) ev.push("digit");
     if (!ev.length) return;
     S.rewards = (S.rewards || 0) + ev.length;
+    stats.rewards += ev.length;
+    saveStats();
     save();
 
     if (ev.length > 1) toast(["", "", "Doppelte Abnahme", "Dreifache Abnahme", "Großbaustelle fertig"][ev.length], true);
@@ -644,7 +830,12 @@ h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 7vw
   }
 
   function afterChange() {
-    if (!S.done && S.grid.every((v, k) => v === S.solution[k])) { S.done = true; S.sel = -1; confetti(); }
+    if (!S.done && S.grid.every((v, k) => v === S.solution[k])) {
+      S.done = true; S.sel = -1;
+      S.newBest = recordWin();
+      confetti();
+      if (S.newBest) setTimeout(() => toast("Neue Bestzeit für " + LEVELS[S.level].name + ": " + fmt(S.seconds), true), 600);
+    }
     render(); save();
   }
 
@@ -730,7 +921,11 @@ h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 7vw
     $("s-err").textContent = S.mistakes;
     $("s-hint").textContent = S.hints;
     $("win").hidden = !S.done;
-    if (S.done) $("win-text").textContent = "Blatt " + S.sheet + ", " + LEVELS[S.level].name + ", in " + fmt(S.seconds) + " mit " + S.mistakes + " Fehlern und " + S.hints + " Hinweisen." + (S.rewards ? " Abnahmen unterwegs: " + S.rewards + "." : "");
+    $("pause-ov").hidden = !paused;
+    $("pause").innerHTML = paused ? PLAY_ICON : PAUSE_ICON;
+    $("pause").setAttribute("aria-label", paused ? "Weiter" : "Pause");
+    $("pause").disabled = S.done;
+    if (S.done) $("win-text").textContent = "Blatt " + S.sheet + ", " + LEVELS[S.level].name + ", in " + fmt(S.seconds) + " mit " + S.mistakes + " Fehlern und " + S.hints + " Hinweisen." + (S.rewards ? " Abnahmen unterwegs: " + S.rewards + "." : "") + (S.newBest ? " Neue Bestzeit." : "");
     renderLevels();
   }
 
@@ -762,16 +957,18 @@ h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 7vw
   $("a-undo").addEventListener("click", undo);
   $("a-erase").addEventListener("click", erase);
   $("a-hint").addEventListener("click", hint);
-  $("a-notes").addEventListener("click", () => { S.notesMode = !S.notesMode; render(); save(); });
+  $("a-notes").addEventListener("click", () => { if (!S || busy || paused) return; S.notesMode = !S.notesMode; render(); save(); });
   $("show-err").addEventListener("change", e => { showErr = e.target.checked; render(); save(); });
 
   document.addEventListener("keydown", e => {
-    if (!S || e.target.closest("input, select, textarea")) return;
+    if (!S || e.target.closest("input, select, textarea") || !$("stats").hidden) return;
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); undo(); return; }
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     const k = e.key;
     if (/^[1-9]$/.test(k)) { input(+k); return; }
     if (k === "Backspace" || k === "Delete" || k === "0") { erase(); e.preventDefault(); return; }
+    if (k === "p" || k === "P") { togglePause(); return; }
+    if (busy || paused) return;
     if (k === "n" || k === "N") { S.notesMode = !S.notesMode; render(); return; }
     if (k === "h" || k === "H") { hint(); return; }
     const mv = { ArrowUp: -9, ArrowDown: 9, ArrowLeft: -1, ArrowRight: 1 }[k];
@@ -787,7 +984,7 @@ h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 7vw
   });
 
   setInterval(() => {
-    if (!S || S.done || document.hidden) return;
+    if (!S || S.done || busy || paused || document.hidden) return;
     S.seconds++;
     $("s-time").textContent = fmt(S.seconds);
     if (S.seconds % 5 === 0) save();
@@ -818,6 +1015,77 @@ h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 7vw
   });
   applyTheme();
 
+  // Pause: Uhr anhalten, Blatt abdecken
+  const PAUSE_ICON = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>';
+  const PLAY_ICON = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg>';
+  function togglePause() {
+    if (!S || busy || S.done) return;
+    paused = !paused;
+    render();
+    if (!paused) cells[S.sel >= 0 ? S.sel : 40].focus({ preventScroll: true });
+  }
+  $("pause").addEventListener("click", togglePause);
+  $("resume").addEventListener("click", togglePause);
+
+  // Bauakte: Statistik auf diesem Gerät
+  const STATS_KEY = "sudoku-bauakte";
+  function blankStats() {
+    const levels = {};
+    for (const k in LEVELS) levels[k] = { started: 0, solved: 0, best: 0, total: 0 };
+    return { levels, streak: 0, bestStreak: 0, rewards: 0 };
+  }
+  function loadStats() {
+    const b = blankStats();
+    try {
+      const s = JSON.parse(localStorage.getItem(STATS_KEY) || "null");
+      if (s && s.levels) {
+        for (const k in LEVELS) Object.assign(b.levels[k], s.levels[k] || {});
+        b.streak = s.streak || 0; b.bestStreak = s.bestStreak || 0; b.rewards = s.rewards || 0;
+      }
+    } catch (_) {}
+    return b;
+  }
+  let stats = loadStats();
+  function saveStats() { try { localStorage.setItem(STATS_KEY, JSON.stringify(stats)); } catch (_) {} }
+  function recordWin() {
+    const L = stats.levels[S.level];
+    const newBest = L.solved === 0 || S.seconds < L.best;
+    L.solved++; L.total += S.seconds;
+    if (newBest) L.best = S.seconds;
+    if (S.mistakes === 0) { stats.streak++; stats.bestStreak = Math.max(stats.bestStreak, stats.streak); }
+    else stats.streak = 0;
+    saveStats();
+    return newBest && L.solved > 1;
+  }
+  function renderStats() {
+    let solved = 0;
+    for (const k in LEVELS) solved += stats.levels[k].solved;
+    const rows = Object.entries(LEVELS).map(([k, L]) => {
+      const v = stats.levels[k];
+      return "<tr><th scope=\"row\">" + L.name + "</th><td>" + v.solved + " / " + v.started + "</td><td>" + (v.solved ? fmt(v.best) : "–") + "</td><td>" + (v.solved ? fmt(Math.round(v.total / v.solved)) : "–") + "</td></tr>";
+    }).join("");
+    $("stats-body").innerHTML =
+      '<div class="tiles">' +
+        '<div><span class="label">Blätter gelöst</span><span class="v">' + solved + '</span></div>' +
+        '<div><span class="label">Serie ohne Fehler</span><span class="v">' + stats.streak + ' <small>Rekord ' + stats.bestStreak + '</small></span></div>' +
+        '<div><span class="label">Abnahmen</span><span class="v">' + stats.rewards + '</span></div>' +
+      '</div>' +
+      '<div class="tbl"><table><thead><tr><th scope="col">Stufe</th><th scope="col">Gelöst / begonnen</th><th scope="col">Bestzeit</th><th scope="col">Schnitt</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+  }
+  let statsArm = null;
+  function openStats() { renderStats(); $("stats").hidden = false; $("stats-close").focus(); }
+  function closeStats() { $("stats").hidden = true; resetStatsArm(); $("stats-btn").focus(); }
+  function resetStatsArm() { clearTimeout(statsArm); statsArm = null; const b = $("stats-reset"); b.classList.remove("armed"); b.textContent = "Bauakte leeren"; }
+  $("stats-btn").addEventListener("click", openStats);
+  $("stats-close").addEventListener("click", closeStats);
+  $("stats").addEventListener("click", e => { if (e.target === $("stats")) closeStats(); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("stats").hidden) closeStats(); });
+  $("stats-reset").addEventListener("click", () => {
+    const b = $("stats-reset");
+    if (!statsArm) { b.classList.add("armed"); b.textContent = "Wirklich alles löschen?"; statsArm = setTimeout(resetStatsArm, 4000); return; }
+    stats = blankStats(); saveStats(); resetStatsArm(); renderStats();
+  });
+
   const KEY = "sudoku-v1";
   function snapshot() { return S ? { game: S, showErr } : {}; }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(snapshot())); } catch (_) {} }
@@ -846,7 +1114,7 @@ h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 7vw
     const d = data && valid(data.game) ? data : load();
     if (typeof d.showErr === "boolean") { showErr = d.showErr; $("show-err").checked = showErr; }
     if (valid(d.game)) { S = d.game; pendingLevel = S.level; render(); }
-    else newGame("mittel");
+    else newGame(d.game && LEVELS[d.game.level] ? d.game.level : "mittel");
   }
   window.claude?.hot?.snapshot?.(snapshot);
   window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
